@@ -13,6 +13,7 @@ using std::string;
 
 enum TokenType {
     FRONTMATTER_START,
+    INTERPOLATION_START,
     START_TAG_NAME,
     SCRIPT_START_TAG_NAME,
     STYLE_START_TAG_NAME,
@@ -118,21 +119,80 @@ struct Scanner {
         return false;
     }
 
-    bool scan_raw_text(TSLexer *lexer) {
-        if (tags.size() && tags.back().type != SCRIPT && tags.back().type != STYLE) return false;
-
-        lexer->mark_end(lexer);
-
-        const string &end_delimiter = 
-            tags.empty() ? "\n---" : /* FIXME make this take into account JS multiline strings */
-            tags.back().type == SCRIPT ? "</SCRIPT"
-            /* back().type == STYLE */ : "</STYLE";
-
+    inline void scan_js_backtick_string(TSLexer *lexer) {
+        // Advance past backtick
+        lexer->advance(lexer, false);
+        while(lexer->lookahead) {
+            if(lexer->lookahead == '$') {
+                lexer->advance(lexer, false);
+                if(lexer->lookahead == '{') {
+                    // String interpolation
+                    lexer->advance(lexer, false);
+                    scan_js_expr(lexer, "}");
+                    // Advance past the final curly
+                } else {
+                    // Reprocess this character
+                    continue;
+                }
+            } else if(lexer->lookahead == '`') {
+                // End of string
+                lexer->advance(lexer, false);
+                break;
+            }
+            lexer->advance(lexer, false);
+        }
+    }
+    inline void scan_js_string(TSLexer *lexer) {
+        // Assumes the lookahead char is actually valid
+        if (lexer->lookahead == '`') {
+            scan_js_backtick_string(lexer);
+        } else {
+            char str_type = lexer->lookahead;
+            lexer->advance(lexer, false);
+            while (lexer->lookahead) {
+                // Note that this doesn't take into account newlines in basic strings,
+                // for the same reason why tree-sitter-javascript doesn't.
+                // https://github.com/tree-sitter/tree-sitter-javascript/blob/fdeb68ac8d2bd5a78b943528bb68ceda3aade2eb/grammar.js#L860
+                if (lexer->lookahead == '\\') {
+                    // Accept any next char
+                    lexer->advance(lexer, false);
+                } else if (lexer->lookahead == str_type) {
+                    // End of string
+                    lexer->advance(lexer, false);
+                    return;
+                }
+                lexer->advance(lexer, false);
+            }
+        }
+    }
+    inline void scan_js_expr(TSLexer *lexer, string end) {
         unsigned delimiter_index = 0;
+        unsigned curly_count = 0;
         while (lexer->lookahead) {
-            if (towupper(lexer->lookahead) == end_delimiter[delimiter_index]) {
+            if(lexer->lookahead == '"' || lexer->lookahead == '\'' || lexer->lookahead == '`') {
+                scan_js_string(lexer);
+                continue;
+            }
+            if(end == "}") {
+                // we have to balance braces
+                if(lexer->lookahead == '{') {
+                    curly_count++;
+                    lexer->advance(lexer, false);
+                    continue;
+                } else if (lexer->lookahead == '}') {
+                    if(curly_count == 0) {
+                        // This should get caught by the delimiter check,
+                        // don't do anything
+                    } else {
+                        curly_count--;
+                        lexer->advance(lexer, false);
+                        continue;
+                    }
+                }
+            }
+            if (lexer->lookahead == end[delimiter_index]) {
                 delimiter_index++;
-                if (delimiter_index == end_delimiter.size()) break;
+                if (delimiter_index == end.size()) break;
                 lexer->advance(lexer, false);
             } else {
                 delimiter_index = 0;
@@ -140,7 +200,43 @@ struct Scanner {
                 lexer->mark_end(lexer);
             }
         }
+    }
 
+    bool scan_raw_text(TSLexer *lexer) {
+        if (tags.empty()) {
+            scan_js_expr(lexer, "\n---");
+            goto finish;
+        }
+        if (tags.back().type == INTERPOLATION) {
+            scan_js_expr(lexer, "}");
+            tags.pop_back();
+            goto finish;
+        }
+
+        {
+            if (tags.back().type != SCRIPT && tags.back().type != STYLE) return false;
+
+            lexer->mark_end(lexer);
+
+            const string &end_delimiter = 
+                tags.back().type == SCRIPT ? "</SCRIPT"
+                /* back().type == STYLE */ : "</STYLE";
+
+            unsigned delimiter_index = 0;
+            while (lexer->lookahead) {
+                if (towupper(lexer->lookahead) == end_delimiter[delimiter_index]) {
+                    delimiter_index++;
+                    if (delimiter_index == end_delimiter.size()) break;
+                    lexer->advance(lexer, false);
+                } else {
+                    delimiter_index = 0;
+                    lexer->advance(lexer, false);
+                    lexer->mark_end(lexer);
+                }
+            }
+        }
+
+    finish:
         lexer->result_symbol = RAW_TEXT;
         return true;
     }
@@ -263,6 +359,15 @@ struct Scanner {
             case '/':
                 if (valid_symbols[SELF_CLOSING_TAG_DELIMITER]) {
                     return scan_self_closing_tag_delimiter(lexer);
+                }
+                break;
+
+            case '{':
+                if (valid_symbols[INTERPOLATION_START]) {
+                    lexer->advance(lexer, false);
+                    tags.push_back(Tag(INTERPOLATION, string()));
+                    lexer->result_symbol = INTERPOLATION_START;
+                    return true;
                 }
                 break;
 

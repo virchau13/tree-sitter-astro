@@ -132,6 +132,8 @@ enum TagType {
     UL,
     VAR,
     VIDEO,
+    // Technically not a 'tag' as such, but rather Astro's curly brace interpolations.
+    INTERPOLATION,
 
     CUSTOM,
 };
@@ -265,6 +267,7 @@ static const map<string, TagType> get_tag_map() {
     TAG(UL);
     TAG(VAR);
     TAG(VIDEO);
+    // EXPR is deliberately excluded from this list.
     #undef TAG
     return result;
 }
@@ -289,14 +292,14 @@ static const TagType TAG_TYPES_NOT_ALLOWED_IN_PARAGRAPHS[] = {
     H3,
     H4,
     H5,
-H6,
-HEADER,
+    H6,
+    HEADER,
     HR,
     MAIN,
     NAV,
     OL,
     P,
-PRE,
+    PRE,
     SECTION,
 };
 
@@ -331,6 +334,11 @@ struct Tag {
 
     inline bool can_contain(const Tag &tag) {
         TagType child = tag.type;
+
+        if(child == INTERPOLATION) {
+            // can be contained anywhere
+            return true;
+        }
 
         switch (type) {
             case LI: return child != LI;
