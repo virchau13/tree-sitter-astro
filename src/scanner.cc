@@ -165,12 +165,13 @@ struct Scanner {
             }
         }
     }
-    inline void scan_js_expr(TSLexer *lexer, string end) {
+    inline void scan_js_expr(TSLexer *lexer, const string& end) {
         unsigned delimiter_index = 0;
         unsigned curly_count = 0;
         while (lexer->lookahead) {
             if(lexer->lookahead == '"' || lexer->lookahead == '\'' || lexer->lookahead == '`') {
                 scan_js_string(lexer);
+                lexer->mark_end(lexer);
                 continue;
             }
             if(end == "}") {

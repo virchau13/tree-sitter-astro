@@ -267,7 +267,7 @@ static const map<string, TagType> get_tag_map() {
     TAG(UL);
     TAG(VAR);
     TAG(VIDEO);
-    // EXPR is deliberately excluded from this list.
+    // INTERPOLATION is deliberately excluded from this list.
     #undef TAG
     return result;
 }
