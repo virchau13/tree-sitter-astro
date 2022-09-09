@@ -138,10 +138,16 @@ enum TagType {
     CUSTOM,
 };
 
+static const std::string toLower(std::string str) {
+    for(char &a: str) {
+        a = std::tolower(a);
+    }
+    return str;
+}
 
 static const map<string, TagType> get_tag_map() {
     map<string, TagType> result;
-#define TAG(name) result[#name] = name
+#define TAG(name) result[toLower(#name)] = name
     TAG(AREA);
     TAG(BASE);
     TAG(BASEFONT);
