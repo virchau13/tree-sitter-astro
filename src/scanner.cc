@@ -86,7 +86,7 @@ struct Scanner {
         while (iswalnum(lexer->lookahead) ||
             lexer->lookahead == '-' ||
             lexer->lookahead == ':') {
-                tag_name += towupper(lexer->lookahead);
+                tag_name += lexer->lookahead;
                 lexer->advance(lexer, false);
             }
         return tag_name;
@@ -166,8 +166,15 @@ struct Scanner {
         }
     }
     inline void scan_js_expr(TSLexer *lexer, const string& end) {
+        lexer->mark_end(lexer);
         unsigned delimiter_index = 0;
         unsigned curly_count = 0;
+        // Inject an extra newline at the start,
+        // so in the case of empty JS frontmatter
+        // where tree-sitter steals the extra newline
+        // it still parses correctly
+        // (Yes, I know, I know...)
+        if(end == "\n---") delimiter_index = 1;
         while (lexer->lookahead) {
             if(lexer->lookahead == '"' || lexer->lookahead == '\'' || lexer->lookahead == '`') {
                 scan_js_string(lexer);
