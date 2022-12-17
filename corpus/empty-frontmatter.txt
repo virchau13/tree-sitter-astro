@@ -1,0 +1,19 @@
+====================
+Empty frontmatter should parse correctly
+====================
+
+---
+---
+<div>
+</div>
+
+--------------------
+
+(fragment
+  (frontmatter
+    (raw_text))
+  (element
+    (start_tag
+      (tag_name))
+    (end_tag
+      (tag_name))))
