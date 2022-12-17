@@ -203,7 +203,15 @@ struct Scanner {
                 if (delimiter_index == end.size()) break;
                 lexer->advance(lexer, false);
             } else {
-                delimiter_index = 0;
+                // It's entirely possible we just stumbled across a newline character,
+                // which would mean that our delimiter index should actually be 1.
+                // Otherwise we'd end up missing the last ---.
+                // This could occur if e.g.
+                // ---
+                // -
+                // ---
+                // was the frontmatter.
+                delimiter_index = (lexer->lookahead == '\n' ? 1 : 0);
                 lexer->advance(lexer, false);
                 lexer->mark_end(lexer);
             }
