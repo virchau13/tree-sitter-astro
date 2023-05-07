@@ -147,7 +147,8 @@ struct Scanner {
         if (lexer->lookahead == '`') {
             scan_js_backtick_string(lexer);
         } else {
-            char str_type = lexer->lookahead;
+            // Start and end chars are the same
+            char str_end_char = lexer->lookahead;
             lexer->advance(lexer, false);
             while (lexer->lookahead) {
                 // Note that this doesn't take into account newlines in basic strings,
@@ -156,7 +157,7 @@ struct Scanner {
                 if (lexer->lookahead == '\\') {
                     // Accept any next char
                     lexer->advance(lexer, false);
-                } else if (lexer->lookahead == str_type) {
+                } else if (lexer->lookahead == str_end_char) {
                     // End of string
                     lexer->advance(lexer, false);
                     return;
@@ -169,6 +170,7 @@ struct Scanner {
         lexer->mark_end(lexer);
         unsigned delimiter_index = 0;
         unsigned curly_count = 0;
+        enum class CommentState { NotInComment, SingleLine, MultiLine } in_comment = CommentState::NotInComment;
         // Inject an extra newline at the start,
         // so in the case of empty JS frontmatter
         // where tree-sitter steals the extra newline
@@ -176,44 +178,88 @@ struct Scanner {
         // (Yes, I know, I know...)
         if(end == "\n---") delimiter_index = 1;
         while (lexer->lookahead) {
-            if(lexer->lookahead == '"' || lexer->lookahead == '\'' || lexer->lookahead == '`') {
-                scan_js_string(lexer);
-                lexer->mark_end(lexer);
-                continue;
-            }
-            if(end == "}") {
-                // we have to balance braces
-                if(lexer->lookahead == '{') {
-                    curly_count++;
-                    lexer->advance(lexer, false);
+            if(in_comment == CommentState::NotInComment) {
+                if(lexer->lookahead == '"' || lexer->lookahead == '\'' || lexer->lookahead == '`') {
+                    scan_js_string(lexer);
+                    lexer->mark_end(lexer);
                     continue;
-                } else if (lexer->lookahead == '}') {
-                    if(curly_count == 0) {
-                        // This should get caught by the delimiter check,
-                        // don't do anything
-                    } else {
-                        curly_count--;
+                }
+                if(lexer->lookahead == '/') {
+                    // comment?
+                    delimiter_index = 0;
+                    lexer->advance(lexer, false);
+                    if(lexer->lookahead == '/') {
+                        in_comment = CommentState::SingleLine;
+                        delimiter_index = 0;
+                        lexer->advance(lexer, false);
+                    } else if(lexer->lookahead == '*') {
+                        in_comment = CommentState::MultiLine;
+                        delimiter_index = 0;
+                        lexer->advance(lexer, false);
+                    }
+                    continue;
+                }
+                if(end == "}") {
+                    // we have to balance braces
+                    if(lexer->lookahead == '{') {
+                        curly_count++;
                         lexer->advance(lexer, false);
                         continue;
+                    } else if (lexer->lookahead == '}') {
+                        if(curly_count == 0) {
+                            // This should get caught by the delimiter check,
+                            // don't do anything
+                        } else {
+                            curly_count--;
+                            lexer->advance(lexer, false);
+                            continue;
+                        }
                     }
                 }
-            }
-            if (lexer->lookahead == end[delimiter_index]) {
-                delimiter_index++;
-                if (delimiter_index == end.size()) break;
-                lexer->advance(lexer, false);
-            } else {
-                // It's entirely possible we just stumbled across a newline character,
-                // which would mean that our delimiter index should actually be 1.
-                // Otherwise we'd end up missing the last ---.
-                // This could occur if e.g.
-                // ---
-                // -
-                // ---
-                // was the frontmatter.
-                delimiter_index = (lexer->lookahead == '\n' ? 1 : 0);
-                lexer->advance(lexer, false);
-                lexer->mark_end(lexer);
+                if (lexer->lookahead == end[delimiter_index]) {
+                    delimiter_index++;
+                    if (delimiter_index == end.size()) break;
+                    lexer->advance(lexer, false);
+                } else {
+                    // It's entirely possible we just stumbled across a newline character,
+                    // which would mean that our delimiter index should actually be 1.
+                    // Otherwise we'd end up missing the last ---.
+                    // This could occur if e.g.
+                    // ---
+                    // -
+                    // ---
+                    // was the frontmatter.
+                    delimiter_index = (lexer->lookahead == '\n' ? 1 : 0);
+                    lexer->advance(lexer, false);
+                    lexer->mark_end(lexer);
+                }
+            } else if(in_comment == CommentState::SingleLine) {
+                if(lexer->lookahead == '\n') {
+                    // End of comment
+                    in_comment = CommentState::NotInComment;
+                    delimiter_index = (end[0] == '\n' ? 1 : 0);
+                    lexer->advance(lexer, false);
+                    lexer->mark_end(lexer);
+                } else {
+                    // Still in comment, ignore
+                    lexer->advance(lexer, false);
+                }
+            } else if (in_comment == CommentState::MultiLine) {
+                if(lexer->lookahead == '*') {
+                    lexer->advance(lexer, false);
+                    if(lexer->lookahead == '/') {
+                        // End of comment
+                        in_comment = CommentState::NotInComment;
+                        delimiter_index = 0;
+                        lexer->advance(lexer, false);
+                    } else {
+                        // fallthrough to next iteration
+                        // (e.g. to handle `**/`)
+                    }
+                } else {
+                    // Still in comment, ignore
+                    lexer->advance(lexer, false);
+                }
             }
         }
     }
