@@ -262,6 +262,11 @@ struct Scanner {
                 }
             }
         }
+        // I have no idea why this is necessary
+        // It seems tree-sitter really hates 1-character delimiters? 
+        if(end == "}") {
+            lexer->mark_end(lexer);
+        }
     }
 
     bool scan_raw_text(TSLexer *lexer) {
