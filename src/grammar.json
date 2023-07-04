@@ -63,11 +63,19 @@
           "name": "interpolation"
         },
         {
+          "type": "SYMBOL",
+          "name": "markdown_element"
+        },
+        {
           "type": "CHOICE",
           "members": [
             {
               "type": "SYMBOL",
               "name": "doctype"
+            },
+            {
+              "type": "SYMBOL",
+              "name": "entity"
             },
             {
               "type": "SYMBOL",
@@ -415,6 +423,10 @@
       "type": "PATTERN",
       "value": "[^<>\"'=\\s]+"
     },
+    "entity": {
+      "type": "PATTERN",
+      "value": "&(#([xX][0-9a-fA-F]{1,6}|[0-9]{1,5})|[A-Za-z]{1,30});"
+    },
     "quoted_attribute_value": {
       "type": "CHOICE",
       "members": [
@@ -483,6 +495,108 @@
     "text": {
       "type": "PATTERN",
       "value": "[^<>{}\\s]([^<>{}]*[^<>{}\\s])?"
+    },
+    "markdown_element": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SEQ",
+          "members": [
+            {
+              "type": "ALIAS",
+              "content": {
+                "type": "SYMBOL",
+                "name": "markdown_start_tag"
+              },
+              "named": true,
+              "value": "start_tag"
+            },
+            {
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "raw_text"
+                },
+                {
+                  "type": "BLANK"
+                }
+              ]
+            },
+            {
+              "type": "SYMBOL",
+              "name": "end_tag"
+            }
+          ]
+        },
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_markdown_self_closing_tag"
+          },
+          "named": true,
+          "value": "self_closing_tag"
+        }
+      ]
+    },
+    "markdown_start_tag": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "<"
+        },
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_markdown_start_tag_name"
+          },
+          "named": true,
+          "value": "tag_name"
+        },
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "SYMBOL",
+            "name": "attribute"
+          }
+        },
+        {
+          "type": "STRING",
+          "value": ">"
+        }
+      ]
+    },
+    "_markdown_self_closing_tag": {
+      "type": "SEQ",
+      "members": [
+        {
+          "type": "STRING",
+          "value": "<"
+        },
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "_markdown_start_tag_name"
+          },
+          "named": true,
+          "value": "tag_name"
+        },
+        {
+          "type": "REPEAT",
+          "content": {
+            "type": "SYMBOL",
+            "name": "attribute"
+          }
+        },
+        {
+          "type": "STRING",
+          "value": "/>"
+        }
+      ]
     },
     "frontmatter": {
       "type": "SEQ",
@@ -560,14 +674,6 @@
   "externals": [
     {
       "type": "SYMBOL",
-      "name": "_frontmatter_start"
-    },
-    {
-      "type": "SYMBOL",
-      "name": "_interpolation_start"
-    },
-    {
-      "type": "SYMBOL",
       "name": "_start_tag_name"
     },
     {
@@ -601,6 +707,18 @@
     {
       "type": "SYMBOL",
       "name": "comment"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_frontmatter_start"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_interpolation_start"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "_markdown_start_tag_name"
     }
   ],
   "inline": [],
