@@ -1,0 +1,4 @@
+examples/astro/packages/astro/e2e/fixtures/errors/src/pages/astro-syntax-error.astro
+examples/astro/packages/markdown/component/Markdown.astro
+examples/astro/packages/astro/test/fixtures/status-code/src/pages/404.astro
+examples/astro/packages/astro/test/fixtures/status-code/src/pages/index.astro
