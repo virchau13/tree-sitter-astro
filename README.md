@@ -40,4 +40,8 @@ If the syntax highlighting doesn't work for embedded CSS/JSX, make sure you have
 - `typescript` (for the frontmatter)
 - `tsx` (for interpolations)
 
+### lazy.nvim
+
+If you're using the [`lazy.nvim`](https://github.com/folke/lazy.nvim) plugin manager, do _not_ use the `opts` key for the nvim-treesitter plugin (it won't work, as nvim-treesitter doesn't have a `.config()` function). Use `require('nvim-treesitter.configs').setup(opts)` instead. For more information, take a look at [#16](https://github.com/virchau13/tree-sitter-astro/issues/16).
+
 If it still doesn't work after that, open an issue.
