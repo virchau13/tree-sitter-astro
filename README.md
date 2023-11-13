@@ -19,16 +19,22 @@ and is essentially [tree-sitter-html](https://github.com/tree-sitter/tree-sitter
 ### Filetype
 
 Neovim doesn't mark `.astro` files with the Astro filetype by default yet, so nvim-treesitter can't tell that tree-sitter-astro must be used for `.astro` files. Either put 
-```
-autocmd BufRead,BufEnter *.astro set filetype=astro
+
+```vim
+augroup _astro
+    autocmd!
+    autocmd BufRead,BufEnter *.astro set filetype=astro
+augroup END
 ```
 in `~/.config/nvim/ftdetect/astro.vim`, or put
-```
-vim.filetype.add({
-    extension = {
-        astro = "astro"
-    }
-})
+
+```lua
+vim.cmd([[
+    augroup _astro
+    autocmd!
+    autocmd BufRead,BufEnter *.astro set filetype=astro
+    augroup end
+]])
 ```
 in `~/.config/nvim/ftdetect/astro.lua`.
 
