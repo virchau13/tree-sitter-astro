@@ -131,3 +131,8 @@ dist
 
 # MacOS file stats
 .DS_Store
+
+/target
+*.o
+
+/examples/*/

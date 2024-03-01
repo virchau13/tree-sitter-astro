@@ -1,50 +1,85 @@
+/**
+ * @file Astro grammar for tree-sitter
+ * @author Vir Chaudhury <virchau13@hexular.net>
+ * @author Amaan Qureshi <amaanq12@gmail.com>
+ * @license MIT
+ */
+
+/* eslint-disable arrow-parens */
+/* eslint-disable camelcase */
+/* eslint-disable-next-line spaced-comment */
 /// <reference types="tree-sitter-cli/dsl" />
+// @ts-check
 
 const HTML = require('tree-sitter-html/grammar');
 
 module.exports = grammar(HTML, {
     name: 'astro',
 
-    externals: ($, orig) => [
+    externals: ($, original) => original.concat([
         $._frontmatter_start,
         $._interpolation_start,
-    ].concat(orig),
+        $._markdown_start_tag_name,
+    ]),
 
     rules: {
-        fragment: ($, orig) => seq(
+        fragment: ($, original) => seq(
             optional($.frontmatter),
-            orig
+            original,
         ),
 
-        _node: ($, orig) => choice(
+        _node: ($, original) => choice(
             $.interpolation,
-            orig,
+            $.markdown_element,
+            original,
+        ),
+
+        markdown_element: $ => choice(
+            seq(
+                alias($.markdown_start_tag, $.start_tag),
+                optional($.raw_text),
+                $.end_tag,
+            ),
+            alias($._markdown_self_closing_tag, $.self_closing_tag),
+        ),
+
+        markdown_start_tag: $ => seq(
+            '<',
+            alias($._markdown_start_tag_name, $.tag_name),
+            repeat($.attribute),
+            '>',
+        ),
+
+        _markdown_self_closing_tag: $ => seq(
+            '<',
+            alias($._markdown_start_tag_name, $.tag_name),
+            repeat($.attribute),
+            '/>',
         ),
 
         frontmatter: $ => seq(
             alias($._frontmatter_start, '---'),
             optional($.raw_text),
-            '---'
+            '---',
         ),
-        
-        attribute: ($, orig) => choice(
-            orig,
+
+        attribute: ($, original) => choice(
+            original,
             seq(
                 $.attribute_name,
                 '=',
-                $.interpolation
-            )
+                $.interpolation,
+            ),
         ),
-        
+
         interpolation: $ => seq(
             alias($._interpolation_start, '{'),
             optional($.raw_text),
-            '}'
+            '}',
         ),
 
-        /* Astro doesn't provide any way to escape curly braces apart from 
+        /* Astro doesn't provide any way to escape curly braces apart from
          * the standard HTML method of e.g. `&x30;` */
-        text: $ => /[^<>{}\s]([^<>{}]*[^<>{}\s])?/
-    }
+        text: _ => /[^<>{}\s]([^<>{}]*[^<>{}\s])?/,
+    },
 });
-
