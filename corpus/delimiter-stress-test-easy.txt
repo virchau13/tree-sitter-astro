@@ -19,7 +19,7 @@ Delimiter stress test #1 (easy)
 
 --------------------
 
-(fragment
+(document
     (frontmatter
         (raw_text))
     (element

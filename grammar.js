@@ -23,7 +23,7 @@ module.exports = grammar(HTML, {
     ]),
 
     rules: {
-        fragment: ($, original) => seq(
+        document: ($, original) => seq(
             optional($.frontmatter),
             original,
         ),

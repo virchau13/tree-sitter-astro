@@ -9,7 +9,7 @@ Strings directly before the end marker should work
 
 --------------------
 
-(fragment
+(document
   (frontmatter
     (raw_text))
   (element

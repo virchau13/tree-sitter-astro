@@ -17,7 +17,7 @@ const thisWorks: number = 42;
 
 --------------------
 
-(fragment
+(document
   (frontmatter
     (raw_text))
   (element

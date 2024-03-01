@@ -12,7 +12,7 @@ Interpolated strings don't need to have balanced braces (if they're escaped by c
 
 ------------------------
 
-(fragment
+(document
    (frontmatter
       (raw_text))
    (element

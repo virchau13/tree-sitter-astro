@@ -11,7 +11,7 @@ Delimiter index tracking should resume at the correct position
 
 --------------------
 
-(fragment
+(document
   (frontmatter
     (raw_text))
   (element

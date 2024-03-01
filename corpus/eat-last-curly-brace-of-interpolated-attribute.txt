@@ -10,7 +10,7 @@ Eat the last curly brace of the interpolated attribute (#14)
 
 --------------------
 
-(fragment
+(document
   (element
     (start_tag
       (tag_name)

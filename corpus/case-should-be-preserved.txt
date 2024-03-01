@@ -12,7 +12,7 @@ Case should matter
 
 --------------------
 
-(fragment
+(document
   (comment)
   (element
     (start_tag

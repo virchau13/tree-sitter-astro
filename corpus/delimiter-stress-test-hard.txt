@@ -37,7 +37,7 @@ quotes inside a comment do not start a new string
 
 -----------------------------
 
-(fragment
+(document
     (frontmatter
         (raw_text))
     (element

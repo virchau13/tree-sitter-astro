@@ -22,7 +22,7 @@ ${`
 
 --------------------
 
-(fragment
+(document
   (frontmatter
     (raw_text))
   (comment)

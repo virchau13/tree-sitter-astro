@@ -9,7 +9,7 @@ Empty frontmatter should parse correctly
 
 --------------------
 
-(fragment
+(document
   (frontmatter
     (raw_text))
   (element
