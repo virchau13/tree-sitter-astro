@@ -19,7 +19,6 @@ module.exports = grammar(HTML, {
     externals: ($, original) => original.concat([
         $._frontmatter_start,
         $._interpolation_start,
-        $._markdown_start_tag_name,
     ]),
 
     rules: {
@@ -30,31 +29,7 @@ module.exports = grammar(HTML, {
 
         _node: ($, original) => choice(
             $.interpolation,
-            $.markdown_element,
             original,
-        ),
-
-        markdown_element: $ => choice(
-            seq(
-                alias($.markdown_start_tag, $.start_tag),
-                optional($.raw_text),
-                $.end_tag,
-            ),
-            alias($._markdown_self_closing_tag, $.self_closing_tag),
-        ),
-
-        markdown_start_tag: $ => seq(
-            '<',
-            alias($._markdown_start_tag_name, $.tag_name),
-            repeat($.attribute),
-            '>',
-        ),
-
-        _markdown_self_closing_tag: $ => seq(
-            '<',
-            alias($._markdown_start_tag_name, $.tag_name),
-            repeat($.attribute),
-            '/>',
         ),
 
         frontmatter: $ => seq(

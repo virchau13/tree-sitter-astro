@@ -64,10 +64,6 @@
           "named": true
         },
         {
-          "type": "markdown_element",
-          "named": true
-        },
-        {
           "type": "script_element",
           "named": true
         },
@@ -112,10 +108,6 @@
         },
         {
           "type": "interpolation",
-          "named": true
-        },
-        {
-          "type": "markdown_element",
           "named": true
         },
         {
@@ -196,33 +188,6 @@
       "types": [
         {
           "type": "raw_text",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "markdown_element",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": true,
-      "types": [
-        {
-          "type": "end_tag",
-          "named": true
-        },
-        {
-          "type": "raw_text",
-          "named": true
-        },
-        {
-          "type": "self_closing_tag",
-          "named": true
-        },
-        {
-          "type": "start_tag",
           "named": true
         }
       ]
