@@ -1,5 +1,4 @@
 #include "tag.h"
-#include <stdio.h>
 #include <wctype.h>
 
 enum TokenType {
@@ -246,7 +245,15 @@ static bool scan_comment(TSLexer *lexer) {
     return false;
 }
 
-static inline void scan_js_expr(TSLexer *lexer, char *end);
+enum RawTextEndType { 
+    // corresponds to the ending delimiter "\n---"
+    EndFrontmatter, 
+    // corresponds to the ending delimiter "}"
+    // we have to balance brackets with this one
+    EndInterp 
+};
+
+static inline void scan_js_expr(TSLexer *lexer, enum RawTextEndType end_type);
 
 static inline void scan_js_backtick_string(TSLexer *lexer) {
     // Advance past backtick
@@ -257,7 +264,7 @@ static inline void scan_js_backtick_string(TSLexer *lexer) {
             if (lexer->lookahead == '{') {
                 // String interpolation
                 lexer->advance(lexer, false);
-                scan_js_expr(lexer, "}");
+                scan_js_expr(lexer, EndInterp);
                 // Advance past the final curly
             } else {
                 // Reprocess this character
@@ -298,9 +305,15 @@ static inline void scan_js_string(TSLexer *lexer) {
     }
 }
 
-static inline void scan_js_expr(TSLexer *lexer, char *end) {
+
+static inline void scan_js_expr(TSLexer *lexer, enum RawTextEndType end_type) {
     lexer->mark_end(lexer);
-    unsigned delimiter_index = 0;
+    // `delimiter_index` is only used when `end_type == EndFrontmatter`.
+    // We assign "1" here because we only enter this function when "---\n" is parsed by tree-sitter,
+    // but tree-sitter leaves out the extra newline when giving the lexer to us.
+    // "1" reflects the true delimiter status.
+    // (This ensures parsing empty delimiters correctly.)
+    unsigned delimiter_index = 1;
     unsigned curly_count = 0;
 
     enum CommentState { NotInComment, SingleLine, MultiLine };
@@ -308,78 +321,70 @@ static inline void scan_js_expr(TSLexer *lexer, char *end) {
 
     while (lexer->lookahead != '\0') {
         if (in_comment == NotInComment) {
+            // delimiter check
+            if (end_type == EndFrontmatter) {
+                // We have to `mark_end` at index 0, always,
+                // so just pre-emptively do it here.
+                if(delimiter_index == 0) {
+                    lexer->mark_end(lexer);
+                }
+                char const * const END = "\n---";
+                if (lexer->lookahead == END[delimiter_index]) {
+                    delimiter_index++;
+                    if (delimiter_index == strlen(END)) {
+                        break;
+                    }
+                } else {
+                    // In case we stumble into a newline. This could happen if e.g.
+                    // ---
+                    // -
+                    // ---
+                    // was the frontmatter.
+                    lexer->mark_end(lexer);
+                    delimiter_index = (lexer->lookahead == '\n' ? 1 : 0);
+                }
+            } else if (end_type == EndInterp) {
+                lexer->mark_end(lexer);
+                // balance braces
+                if (lexer->lookahead == '{') {
+                    curly_count++;
+                } else if (lexer->lookahead == '}') {
+                    if (curly_count == 0) {
+                        // delimiter, break
+                        lexer->mark_end(lexer);
+                        break;
+                    }
+                    curly_count--;
+                }
+            }
             if (lexer->lookahead == '"' || lexer->lookahead == '\'' ||
                 lexer->lookahead == '`') {
                 scan_js_string(lexer);
-                lexer->mark_end(lexer);
                 continue;
             }
             if (lexer->lookahead == '/') {
                 // comment?
-                delimiter_index = 0;
                 lexer->advance(lexer, false);
                 if (lexer->lookahead == '/') {
                     in_comment = SingleLine;
-                    delimiter_index = 0;
-                    lexer->advance(lexer, false);
                 } else if (lexer->lookahead == '*') {
                     in_comment = MultiLine;
-                    delimiter_index = 0;
-                    lexer->advance(lexer, false);
                 }
                 continue;
-            }
-
-            if (strcmp(end, "}") == 0) {
-                while (lexer->lookahead == '\n') {
-                    lexer->advance(lexer, false);
-                }
-                // we have to balance braces
-                if (lexer->lookahead == '{') {
-                    curly_count++;
-                    lexer->advance(lexer, false);
-                    continue;
-                }
-                if (lexer->lookahead == '}') {
-                    if (curly_count == 0) {
-                        // This should get caught by the delimiter check,
-                        // don't do anything
-                    } else {
-                        curly_count--;
-                        lexer->advance(lexer, false);
-                        continue;
-                    }
-                }
-            }
-            if (lexer->lookahead == end[delimiter_index]) {
-                delimiter_index++;
-                if (delimiter_index == strlen(end)) {
-                    break;
-                }
-                lexer->advance(lexer, false);
-            } else {
-                // It's entirely possible we just stumbled across a newline
-                // character, which would mean that our delimiter index
-                // should actually be 1. Otherwise we'd end up missing the
-                // last ---. This could occur if e.g.
-                // ---
-                // -
-                // ---
-                // was the frontmatter.
-                /* delimiter_index = (lexer->lookahead == '\n' ? 1 : 0); */
-                lexer->advance(lexer, false);
-                lexer->mark_end(lexer);
             }
         } else if (in_comment == SingleLine) {
             if (lexer->lookahead == '\n') {
                 // End of comment
                 in_comment = NotInComment;
-                /* delimiter_index = (end[0] == '\n' ? 1 : 0); */
-                lexer->advance(lexer, false);
+                // Frontmatter delimiters start with 1 newline.
+                delimiter_index = (end_type == EndFrontmatter ? 1 : 0);
+                // `mark_end` here ensures that we don't accidentally skip a frontmatter delimiter start point.
+                // If this was left out, delimiters of the form
+                // ---
+                // // comment
+                // ---
+                // would never `mark_end` before the delimiter, causing the returned token to be truncated in size.
                 lexer->mark_end(lexer);
-            } else {
-                // Still in comment, ignore
-                lexer->advance(lexer, false);
             }
         } else if (in_comment == MultiLine) {
             if (lexer->lookahead == '*') {
@@ -388,31 +393,22 @@ static inline void scan_js_expr(TSLexer *lexer, char *end) {
                     // End of comment
                     in_comment = NotInComment;
                     delimiter_index = 0;
-                    lexer->advance(lexer, false);
                 } else {
                     continue;
                 }
-            } else {
-                // Still in comment, ignore
-                lexer->advance(lexer, false);
             }
         }
-    }
-
-    // I have no idea why this is necessary
-    // It seems tree-sitter really hates 1-character delimiters?
-    if (strcmp(end, "}") == 0) {
-        lexer->mark_end(lexer);
+        lexer->advance(lexer, false);
     }
 }
 
 static bool scan_raw_text(Scanner *scanner, TSLexer *lexer) {
     if (scanner->tags.len == 0) {
-        scan_js_expr(lexer, "---");
+        scan_js_expr(lexer, EndFrontmatter);
         goto finish;
     }
     if (VEC_BACK(scanner->tags).type == INTERPOLATION) {
-        scan_js_expr(lexer, "}");
+        scan_js_expr(lexer, EndInterp);
         VEC_POP(scanner->tags);
         goto finish;
     }
