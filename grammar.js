@@ -31,9 +31,17 @@ module.exports = grammar(HTML, {
             repeat($._node),
         ),
 
-        _node: ($, original) => choice(
+        _node: ($, _original) => choice(
+            // Same as original minus `.entity`
+            // and plus `.html_interpolation`.
+            // TODO add back entity highlights
+            $.doctype,
+            $.text,
+            $.element,
+            $.script_element,
+            $.style_element,
+            $.erroneous_end_tag,
             $.html_interpolation,
-            original,
         ),
 
         // For use in HTML interpolations.
@@ -53,18 +61,20 @@ module.exports = grammar(HTML, {
                 seq(
                     alias($._start_tag_name, $.tag_name),
                     repeat($.attribute),
+                    '>',
                 ),
                 $.fragment_tag_name,
             ),
-            '>'
         ),
         end_tag: ($, _) => seq(
             '</',
             choice(
-                alias($._end_tag_name, $.tag_name),
+                seq(
+                    alias($._end_tag_name, $.tag_name),
+                    '>',
+                ),
                 $.fragment_tag_name,
             ),
-            '>'
         ),
 
         frontmatter: $ => seq(
@@ -96,6 +106,6 @@ module.exports = grammar(HTML, {
 
         /* Astro doesn't provide any way to escape curly braces apart from
          * the standard HTML method of e.g. `&x30;` */
-        text: _ => /[^<>&\s]([^<>&]*[^<>&\s])?/,
+        text: _ => /[^<>{}\s]([^<>{}]*[^<>{}\s])?/,
     },
 });

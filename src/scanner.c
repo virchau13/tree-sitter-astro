@@ -110,7 +110,9 @@ static void deserialize(Scanner *scanner, const char *buffer, unsigned length) {
 
 static String scan_tag_name(TSLexer *lexer) {
     String tag_name = array_new();
-    while (iswalnum(lexer->lookahead) || lexer->lookahead == '-' || lexer->lookahead == ':') {
+    while (iswalnum(lexer->lookahead) || 
+            lexer->lookahead == '-' || 
+            lexer->lookahead == ':' || lexer->lookahead == '.') {
         array_push(&tag_name, lexer->lookahead);
         advance(lexer);
     }
@@ -397,10 +399,16 @@ static bool scan_start_tag_name(Scanner *scanner, TSLexer *lexer) {
     String tag_name = scan_tag_name(lexer);
     if (tag_name.size == 0) {
         array_delete(&tag_name);
-        Tag tag = {.type = FRAGMENT, .custom_tag_name = {0}};
-        array_push(&scanner->tags, tag);
-        lexer->result_symbol = FRAGMENT_TAG_NAME;
-        return true;
+        // Fragment tags don't contain spaces.
+        if (lexer->lookahead == '>') {
+            advance(lexer);
+            Tag tag = {.type = FRAGMENT, .custom_tag_name = {0}};
+            array_push(&scanner->tags, tag);
+            lexer->result_symbol = FRAGMENT_TAG_NAME;
+            return true;
+        } else {
+            return false;
+        }
     }
 
     Tag tag = tag_for_name(tag_name);
@@ -423,13 +431,19 @@ static bool scan_end_tag_name(Scanner *scanner, TSLexer *lexer) {
     String tag_name = scan_tag_name(lexer);
     if (tag_name.size == 0) {
         array_delete(&tag_name);
-        if (array_back(&scanner->tags)->type == FRAGMENT) {
-            pop_tag(scanner);
-            lexer->result_symbol = FRAGMENT_TAG_NAME;
-            return true;
+        if (lexer->lookahead == '>') {
+            advance(lexer);
+            if (array_back(&scanner->tags)->type == FRAGMENT) {
+                pop_tag(scanner);
+                lexer->result_symbol = FRAGMENT_TAG_NAME;
+                return true;
+            } else {
+                lexer->result_symbol = ERRONEOUS_END_TAG_NAME;
+                return true;
+            }
         } else {
-            lexer->result_symbol = ERRONEOUS_END_TAG_NAME;
-            return true;
+            // Closing fragment tags don't have spaces.
+            return false;
         }
     }
 
@@ -469,6 +483,39 @@ static bool scan_permissible_text(TSLexer *lexer) {
             // Start of interpolation / end of interpolation, break
             break;
         }
+        if(lexer->lookahead == '\'' || lexer->lookahead == '"' || lexer->lookahead == '`') {
+            // skip string
+            scan_js_string(lexer);
+            there_is_text = true;
+            continue;
+        }
+        if(lexer->lookahead == '/') {
+            // check for a comment
+            // (c.f. https://github.com/withastro/compiler/blob/e8b6cdfc89f940a411304787632efd8140535feb/internal/token.go#L1017)
+            advance(lexer);
+            there_is_text = true;
+            if (lexer->lookahead == '/') {
+                // single-line comment
+                while(lexer->lookahead != '\r' && lexer->lookahead != '\n' && lexer->lookahead != '\0') {
+                    advance(lexer);
+                }
+            }
+            if (lexer->lookahead == '*') {
+                // multiline comment
+                while (lexer->lookahead != '\0') {
+                    advance(lexer);
+                    if (lexer->lookahead == '*') {
+                        advance(lexer);
+                        if (lexer->lookahead == '/') {
+                            // end of multi-line comment
+                            advance(lexer);
+                            break;
+                        }
+                    }
+                }
+            }
+            continue;
+        }
         if (lexer->lookahead == '<') {
             advance(lexer);
             // This is the same logic the Astro compiler uses
@@ -493,10 +540,10 @@ static bool scan_permissible_text(TSLexer *lexer) {
                 // (e.g. `<> <p> hi </p> </>`)
                 break;
             }
-        } else {
-            advance(lexer);
-            there_is_text = true;
-        }
+            continue;
+        } 
+        advance(lexer);
+        there_is_text = true;
     }
 
     // If there isn't any text,
@@ -590,6 +637,11 @@ static bool scan(Scanner *scanner, TSLexer *lexer, const bool *valid_symbols) {
             }
             break;
         case '}':
+            // Close any void tags before exiting the interpolation node.
+            if (valid_symbols[IMPLICIT_END_TAG]) {
+                return scan_implicit_end_tag(scanner, lexer);
+            }
+
             if (valid_symbols[HTML_INTERPOLATION_END] && array_back(&scanner->tags)->type == INTERPOLATION) {
                 lexer->advance(lexer, false);
                 array_pop(&scanner->tags);

@@ -60,40 +60,31 @@
       "members": [
         {
           "type": "SYMBOL",
-          "name": "html_interpolation"
+          "name": "doctype"
         },
         {
-          "type": "CHOICE",
-          "members": [
-            {
-              "type": "SYMBOL",
-              "name": "doctype"
-            },
-            {
-              "type": "SYMBOL",
-              "name": "entity"
-            },
-            {
-              "type": "SYMBOL",
-              "name": "text"
-            },
-            {
-              "type": "SYMBOL",
-              "name": "element"
-            },
-            {
-              "type": "SYMBOL",
-              "name": "script_element"
-            },
-            {
-              "type": "SYMBOL",
-              "name": "style_element"
-            },
-            {
-              "type": "SYMBOL",
-              "name": "erroneous_end_tag"
-            }
-          ]
+          "type": "SYMBOL",
+          "name": "text"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "element"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "script_element"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "style_element"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "erroneous_end_tag"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "html_interpolation"
         }
       ]
     },
@@ -223,6 +214,10 @@
                     "type": "SYMBOL",
                     "name": "attribute"
                   }
+                },
+                {
+                  "type": "STRING",
+                  "value": ">"
                 }
               ]
             },
@@ -231,10 +226,6 @@
               "name": "fragment_tag_name"
             }
           ]
-        },
-        {
-          "type": "STRING",
-          "value": ">"
         }
       ]
     },
@@ -336,23 +327,28 @@
           "type": "CHOICE",
           "members": [
             {
-              "type": "ALIAS",
-              "content": {
-                "type": "SYMBOL",
-                "name": "_end_tag_name"
-              },
-              "named": true,
-              "value": "tag_name"
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "ALIAS",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "_end_tag_name"
+                  },
+                  "named": true,
+                  "value": "tag_name"
+                },
+                {
+                  "type": "STRING",
+                  "value": ">"
+                }
+              ]
             },
             {
               "type": "SYMBOL",
               "name": "fragment_tag_name"
             }
           ]
-        },
-        {
-          "type": "STRING",
-          "value": ">"
         }
       ]
     },
@@ -513,7 +509,7 @@
     },
     "text": {
       "type": "PATTERN",
-      "value": "[^<>&\\s]([^<>&]*[^<>&\\s])?"
+      "value": "[^<>{}\\s]([^<>{}]*[^<>{}\\s])?"
     },
     "_node_with_permissible_text": {
       "type": "CHOICE",

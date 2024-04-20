@@ -25,9 +25,9 @@ function clone_repo {
 	popd >/dev/null
 }
 
-clone_repo withastro astro c459b81785b8bbdd07c3d27b471990e8ffa656df
+clone_repo withastro astro 3757a212c01cee03b8e96e1e9697a187ae7cc290
 
-known_failures="$(cat script/known_failures.txt)"
+known_failures="$(cat script/known_failures.txt | sed '/^#/d')"
 
 # shellcheck disable=2046
 tree-sitter parse -q \
@@ -37,7 +37,7 @@ tree-sitter parse -q \
 example_count=$(find examples -name "*.astro" | wc -l)
 failure_count=$(wc -w <<<"$known_failures")
 success_count=$((example_count - failure_count))
-success_percent=$(bc -l <<<"100*${success_count}/${example_count}")
+success_percent=$(node <<<"console.log(100*${success_count}/${example_count})")
 
 printf \
 	"Successfully parsed %d of %d example files (%.1f%%)\n" \
