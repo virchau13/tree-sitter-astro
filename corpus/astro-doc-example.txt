@@ -19,7 +19,7 @@ const thisWorks: number = 42;
 
 (document
   (frontmatter
-    (raw_text))
+    (frontmatter_js_block))
   (element
     (start_tag
       (tag_name)

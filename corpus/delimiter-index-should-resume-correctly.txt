@@ -13,7 +13,7 @@ Delimiter index tracking should resume at the correct position
 
 (document
   (frontmatter
-    (raw_text))
+    (frontmatter_js_block))
   (element
     (start_tag
       (tag_name))

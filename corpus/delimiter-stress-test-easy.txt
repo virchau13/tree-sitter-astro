@@ -21,7 +21,7 @@ Delimiter stress test #1 (easy)
 
 (document
     (frontmatter
-        (raw_text))
+        (frontmatter_js_block))
     (element
         (self_closing_tag
             (tag_name))))

@@ -132,7 +132,7 @@ typedef enum {
     VAR,
     VIDEO,
     // Technically not a 'tag' as such, but rather Astro's curly brace
-    // interpolations.
+    // HTML interpolations.
     INTERPOLATION,
 
     CUSTOM,

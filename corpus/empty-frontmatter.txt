@@ -11,7 +11,7 @@ Empty frontmatter should parse correctly
 
 (document
   (frontmatter
-    (raw_text))
+    (frontmatter_js_block))
   (element
     (start_tag
       (tag_name))

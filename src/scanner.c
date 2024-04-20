@@ -13,8 +13,11 @@ enum TokenType {
     IMPLICIT_END_TAG,
     RAW_TEXT,
     COMMENT,
-    FRONTMATTER_START,
-    INTERPOLATION_START,
+    HTML_INTERPOLATION_START,
+    HTML_INTERPOLATION_END,
+    FRONTMATTER_JS_BLOCK,
+    ATTRIBUTE_JS_EXPR,
+    PERMISSIBLE_TEXT,
 };
 
 typedef struct {
@@ -22,6 +25,8 @@ typedef struct {
 } Scanner;
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
+
+#define IS_ASCII_ALPHA(e) (('a' <= (e) && (e) <= 'z') || ('A' <= (e) && (e) <= 'Z'))
 
 static inline void advance(TSLexer *lexer) { lexer->advance(lexer, false); }
 
@@ -145,12 +150,13 @@ static bool scan_comment(TSLexer *lexer) {
 enum RawTextEndType { 
     // corresponds to the ending delimiter "\n---"
     EndFrontmatter, 
-    // corresponds to the ending delimiter "}"
-    // we have to balance brackets with this one
-    EndInterp 
+    // corresponds to the ending delimiter "}",
+    // used for JS backtick strings and attribute interpolations.
+    // we have to balance brackets with this one.
+    EndCurly 
 };
 
-static inline void scan_js_expr(TSLexer *lexer, enum RawTextEndType end_type);
+static inline void scan_js_expr_with_delimiter(TSLexer *lexer, enum RawTextEndType end_type);
 
 static inline void scan_js_backtick_string(TSLexer *lexer) {
     // Advance past backtick
@@ -161,7 +167,7 @@ static inline void scan_js_backtick_string(TSLexer *lexer) {
             if (lexer->lookahead == '{') {
                 // String interpolation
                 lexer->advance(lexer, false);
-                scan_js_expr(lexer, EndInterp);
+                scan_js_expr_with_delimiter(lexer, EndCurly);
                 // Advance past the final curly
             } else {
                 // Reprocess this character
@@ -203,7 +209,7 @@ static inline void scan_js_string(TSLexer *lexer) {
 }
 
 
-static inline void scan_js_expr(TSLexer *lexer, enum RawTextEndType end_type) {
+static inline void scan_js_expr_with_delimiter(TSLexer *lexer, enum RawTextEndType end_type) {
     lexer->mark_end(lexer);
     // `delimiter_index` is only used when `end_type == EndFrontmatter`.
     // We assign "1" here because we only enter this function when "---\n" is parsed by tree-sitter,
@@ -240,7 +246,7 @@ static inline void scan_js_expr(TSLexer *lexer, enum RawTextEndType end_type) {
                     lexer->mark_end(lexer);
                     delimiter_index = (lexer->lookahead == '\n' ? 1 : 0);
                 }
-            } else if (end_type == EndInterp) {
+            } else if (end_type == EndCurly) {
                 lexer->mark_end(lexer);
                 // balance braces
                 if (lexer->lookahead == '{') {
@@ -300,24 +306,14 @@ static inline void scan_js_expr(TSLexer *lexer, enum RawTextEndType end_type) {
 }
 
 static bool scan_raw_text(Scanner *scanner, TSLexer *lexer) {
-    if (scanner->tags.size == 0) {
-        scan_js_expr(lexer, EndFrontmatter);
-        goto finish;
-    }
-
-    if (array_back(&scanner->tags)->type == INTERPOLATION) {
-        scan_js_expr(lexer, EndInterp);
-        array_pop(&scanner->tags);
-        goto finish;
-    }
-
     lexer->mark_end(lexer);
 
-    const char *end_delimiter = array_back(&scanner->tags)->type == SCRIPT ? "</SCRIPT" : "</STYLE";
+    const char *end_delimiter = array_back(&scanner->tags)->type == SCRIPT ? "</script" : "</style";
 
     unsigned delimiter_index = 0;
     while (lexer->lookahead) {
-        if (towupper(lexer->lookahead) == end_delimiter[delimiter_index]) {
+        // TODO add test for uppercase SCRIPT not conflicting with lowercase script
+        if (lexer->lookahead == end_delimiter[delimiter_index]) {
             delimiter_index++;
             if (delimiter_index == strlen(end_delimiter)) {
                 break;
@@ -330,7 +326,6 @@ static bool scan_raw_text(Scanner *scanner, TSLexer *lexer) {
         }
     }
 
-finish:
     lexer->result_symbol = RAW_TEXT;
     return true;
 }
@@ -453,14 +448,78 @@ static bool scan_self_closing_tag_delimiter(Scanner *scanner, TSLexer *lexer) {
     return false;
 }
 
+static bool scan_permissible_text(TSLexer *lexer) {
+    lexer->mark_end(lexer);
+
+    while (lexer->lookahead != '\0') {
+        lexer->mark_end(lexer);
+        if(lexer->lookahead == '{' || lexer->lookahead == '}') {
+            // Start of interpolation / end of interpolation, break
+            break;
+        }
+        if (lexer->lookahead == '<') {
+            advance(lexer);
+            // This is the same logic the Astro compiler uses
+            // to find when to terminate a text node.
+            // https://github.com/withastro/compiler/blob/e8b6cdfc89f940a411304787632efd8140535feb/internal/token.go#L1737
+            if (IS_ASCII_ALPHA(lexer->lookahead)) {
+                // Potential <start> tag
+                break;
+            }
+            if (lexer->lookahead == '/') {
+                // Potential </end> tag
+                break;
+            }
+            if (lexer->lookahead == '/' || lexer->lookahead == '?') {
+                // Potential <!-- comment --> tag
+                // or <!DOCTYPE ...> tag
+                // or <?xml processing instructions?> tag
+                break;
+            }
+            if (lexer->lookahead == '>') {
+                // TODO add grammar.js support for this
+                // Potential "element group" tag
+                // (e.g. `<> <p> hi </p> </>`)
+                break;
+            }
+        } else {
+            advance(lexer);
+        }
+    }
+
+    lexer->result_symbol = PERMISSIBLE_TEXT;
+    return true;
+}
+
 static bool scan(Scanner *scanner, TSLexer *lexer, const bool *valid_symbols) {
+    if (valid_symbols[FRONTMATTER_JS_BLOCK] && scanner->tags.size == 0) {
+        scan_js_expr_with_delimiter(lexer, EndFrontmatter);
+        lexer->result_symbol = FRONTMATTER_JS_BLOCK;
+        return true;
+    }
+
     if (valid_symbols[RAW_TEXT] && !valid_symbols[START_TAG_NAME] && !valid_symbols[END_TAG_NAME]) {
         return scan_raw_text(scanner, lexer);
     }
 
-    while (iswspace(lexer->lookahead)) {
-        skip(lexer);
+    if (valid_symbols[ATTRIBUTE_JS_EXPR]) {
+        scan_js_expr_with_delimiter(lexer, EndCurly);
+        lexer->result_symbol = ATTRIBUTE_JS_EXPR;
+        return true;
     }
+
+    if (valid_symbols[PERMISSIBLE_TEXT]) {
+        if(iswspace(lexer->lookahead)) {
+            // Can't be anything else.
+            return scan_permissible_text(lexer);
+        }
+    } else {
+        while (iswspace(lexer->lookahead)) {
+            skip(lexer);
+        }
+    }
+
+    bool definitely_not_permissible_text = false;
 
     switch (lexer->lookahead) {
         case '<':
@@ -471,10 +530,17 @@ static bool scan(Scanner *scanner, TSLexer *lexer, const bool *valid_symbols) {
                 advance(lexer);
                 return scan_comment(lexer);
             }
-
+            
             if (valid_symbols[IMPLICIT_END_TAG]) {
                 return scan_implicit_end_tag(scanner, lexer);
             }
+
+            if (valid_symbols[PERMISSIBLE_TEXT] && IS_ASCII_ALPHA(lexer->lookahead)) {
+                // This looks like an element,
+                // so it can't be permissible text.
+                definitely_not_permissible_text = true;
+            }
+
             break;
 
         case '\0':
@@ -490,35 +556,33 @@ static bool scan(Scanner *scanner, TSLexer *lexer, const bool *valid_symbols) {
             break;
 
         case '{':
-            if (valid_symbols[INTERPOLATION_START]) {
+            if (valid_symbols[HTML_INTERPOLATION_START]) {
                 lexer->advance(lexer, false);
                 Tag tag = (Tag){INTERPOLATION, {0}};
                 array_push(&scanner->tags, tag);
-                lexer->result_symbol = INTERPOLATION_START;
+                lexer->result_symbol = HTML_INTERPOLATION_START;
                 return true;
             }
             break;
-
-        case '-':
-            if (valid_symbols[FRONTMATTER_START]) {
-                lexer->mark_end(lexer);
+        case '}':
+            if (valid_symbols[HTML_INTERPOLATION_END] && array_back(&scanner->tags)->type == INTERPOLATION) {
                 lexer->advance(lexer, false);
-                if (lexer->lookahead == '-') {
-                    lexer->advance(lexer, false);
-                    if (lexer->lookahead == '-') {
-                        lexer->advance(lexer, false);
-                        lexer->mark_end(lexer);
-                        lexer->result_symbol = FRONTMATTER_START;
-                        return true;
-                    }
-                }
+                array_pop(&scanner->tags);
+                lexer->result_symbol = HTML_INTERPOLATION_END;
+                return true;
             }
+            break;
 
         default:
             if ((valid_symbols[START_TAG_NAME] || valid_symbols[END_TAG_NAME]) && !valid_symbols[RAW_TEXT]) {
                 return valid_symbols[START_TAG_NAME] ? scan_start_tag_name(scanner, lexer)
                                                      : scan_end_tag_name(scanner, lexer);
             }
+    }
+
+    if (!definitely_not_permissible_text && valid_symbols[PERMISSIBLE_TEXT]) {
+        // There are no other choices, it's this or nothing.
+        return scan_permissible_text(lexer);
     }
 
     return false;

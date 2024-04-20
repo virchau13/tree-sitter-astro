@@ -10,7 +10,6 @@ If the syntax highlighting doesn't work for embedded CSS/JSX, make sure you have
 
 - `css` (for CSS in `style` elements)
 - `typescript` (for the frontmatter)
-- `tsx` (for interpolations)
 
 ### lazy.nvim
 
@@ -18,11 +17,67 @@ If you're using the [`lazy.nvim`](https://github.com/folke/lazy.nvim) plugin man
 
 ## Specification
 
-This parser just uses the general idea that the document looks like
+There are two parts to an Astro document, as shown below:
 <pre><code>---
-<i>{typescript}</i>
+<i>{frontmatter}</i>
 ---
-<i>{html}</i>
+<i>{astro html}</i>
 </pre></code>
+These have to be handled differently.
 
-and is essentially [tree-sitter-html](https://github.com/tree-sitter/tree-sitter-html) plus two snazzy ways to write `<script>` tags.
+### The frontmatter
+This is just injected TypeScript.
+
+### Astro's special HTML format
+Astro's special HTML format is *not* JSX/TSX, but rather an extension of HTML. This grammar is an extension of the grammar from [tree-sitter-html](https://github.com/tree-sitter/tree-sitter-html).
+
+Astro's HTML is parsed as regular HTML with two exceptions: *HTML interpolations* and *attribute interpolations* (both referred to as "expressions" in the Astro docs). These are JS-ish expressions:
+```astro
+<!-- Attribute interpolation -->
+<div style={styleMap}></div>
+<!-- HTML interpolation -->
+<div>{variable}</div>
+```
+
+These are both parsed differently.
+
+#### Attribute interpolations
+Attribute interpolations are handled as injected TypeScript.
+
+#### HTML interpolations
+In the Astro compiler, HTML interpolations are actually handled as [special HTML nodes](https://github.com/withastro/compiler/blob/e8b6cdfc89f940a411304787632efd8140535feb/internal/parser.go#L2736). We do the same here.  
+Balanced curly braces inside HTML interpolations will turn into a nested stack of HTML interpolations.  
+Note that since this is not JSX, there are things valid in Astro that aren't in JSX, and there are things that are valid in JSX that aren't in Astro. For instance,
+```astro
+<ValidAstro>
+    {(() => {
+        let name = 
+            <!-- You can just leave HTML comments anywhere you want. -->
+            <!-- They are completely disregarded by the compiler. -->
+            "value";
+        // Multiple elements can be put next to each other,
+        // which isn't possible in JSX without a containing element.
+        let ret = (
+            <p> paragraph 1 </p>
+            <p> paragraph 2 </p>
+        );
+    })()}
+</ValidAstro>
+```
+```jsx
+<ValidJSX>
+    {(() => {
+        let p = 2;
+        let invalidInAstro = 1<p>"</p>";
+        // In JavaScript, the above parses as (1 < p) > "</p>",
+        // which evaluates to false.
+        // However, since the Astro compiler has no knowledge of JS,
+        // it sees the above as the text "1", then
+        // a p-tag with a quote character as innerText, then a single quote character again.
+        // This compiles to something like
+        // let invalidInAstro = 1 $$render(`<p>"</p>`)";
+        // which is a syntax error.
+    })()}
+</ValidJSX>
+```
+

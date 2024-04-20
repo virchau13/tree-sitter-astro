@@ -16,8 +16,8 @@ Eat the last curly brace of the interpolated attribute (#14)
       (tag_name)
       (attribute
         (attribute_name)
-        (interpolation
-          (raw_text))))
+        (attribute_interpolation
+          (attribute_js_expr))))
     (end_tag
       (tag_name)))
   (element
@@ -25,7 +25,7 @@ Eat the last curly brace of the interpolated attribute (#14)
       (tag_name)
       (attribute
         (attribute_name)
-        (interpolation
-          (raw_text))))
+        (attribute_interpolation
+          (attribute_js_expr))))
     (end_tag
       (tag_name))))

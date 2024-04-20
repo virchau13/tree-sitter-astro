@@ -11,7 +11,7 @@ Strings directly before the end marker should work
 
 (document
   (frontmatter
-    (raw_text))
+    (frontmatter_js_block))
   (element
     (start_tag
       (tag_name))

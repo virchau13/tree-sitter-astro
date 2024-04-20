@@ -12,7 +12,7 @@ const myArray = [-1, -2, -3];
 
 (document
   (frontmatter
-    (raw_text))
+    (frontmatter_js_block))
   (element
     (start_tag
       (tag_name))

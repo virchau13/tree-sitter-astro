@@ -39,7 +39,7 @@ quotes inside a comment do not start a new string
 
 (document
     (frontmatter
-        (raw_text))
+        (frontmatter_js_block))
     (element
         (self_closing_tag
             (tag_name))))

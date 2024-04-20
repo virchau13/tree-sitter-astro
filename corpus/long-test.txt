@@ -74,7 +74,7 @@ import Layout from '../layouts/Layout.astro';
 
 (document
   (frontmatter
-    (raw_text))
+    (frontmatter_js_block))
   (comment)
   (element
     (start_tag
@@ -395,12 +395,12 @@ import Layout from '../layouts/Layout.astro';
                       (attribute_name))
                     (attribute
                       (attribute_name)
-                      (interpolation
-                        (raw_text)))
+                      (attribute_interpolation
+                        (attribute_js_expr)))
                     (attribute
                       (attribute_name)
-                      (interpolation
-                        (raw_text)))
+                      (attribute_interpolation
+                        (attribute_js_expr)))
                     (attribute
                       (attribute_name)
                       (quoted_attribute_value

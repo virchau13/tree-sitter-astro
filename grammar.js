@@ -17,24 +17,36 @@ module.exports = grammar(HTML, {
     name: 'astro',
 
     externals: ($, original) => original.concat([
-        $._frontmatter_start,
-        $._interpolation_start,
+        $._html_interpolation_start,
+        $._html_interpolation_end,
+        $.frontmatter_js_block,
+        $.attribute_js_expr,
+        $.permissible_text,
     ]),
 
     rules: {
-        document: ($, original) => seq(
+        document: $ => seq(
             optional($.frontmatter),
-            original,
+            repeat($._node),
         ),
 
         _node: ($, original) => choice(
-            $.interpolation,
+            $.html_interpolation,
             original,
         ),
 
+        _node_with_permissible_text: $ => choice(
+            $.doctype,
+            $.element,
+            $.script_element,
+            $.style_element,
+            $.html_interpolation,
+            $.permissible_text,
+        ),
+
         frontmatter: $ => seq(
-            alias($._frontmatter_start, '---'),
-            optional($.raw_text),
+            token(prec(1, '---')),
+            optional($.frontmatter_js_block),
             '---',
         ),
 
@@ -43,18 +55,24 @@ module.exports = grammar(HTML, {
             seq(
                 $.attribute_name,
                 '=',
-                $.interpolation,
+                $.attribute_interpolation,
             ),
         ),
 
-        interpolation: $ => seq(
-            alias($._interpolation_start, '{'),
-            optional($.raw_text),
-            '}',
+        attribute_interpolation: $ => seq(
+            token(prec(1, '{')),
+            $.attribute_js_expr,
+            '}'
+        ),
+
+        html_interpolation: $ => seq(
+            alias($._html_interpolation_start, '{'),
+            repeat($._node_with_permissible_text),
+            alias($._html_interpolation_end, '}'),
         ),
 
         /* Astro doesn't provide any way to escape curly braces apart from
          * the standard HTML method of e.g. `&x30;` */
-        text: _ => /[^<>{}\s]([^<>{}]*[^<>{}\s])?/,
+        text: _ => /[^<>&\s]([^<>&]*[^<>&\s])?/,
     },
 });
