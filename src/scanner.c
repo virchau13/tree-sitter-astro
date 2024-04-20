@@ -18,6 +18,7 @@ enum TokenType {
     FRONTMATTER_JS_BLOCK,
     ATTRIBUTE_JS_EXPR,
     PERMISSIBLE_TEXT,
+    FRAGMENT_TAG_NAME,
 };
 
 typedef struct {
@@ -396,7 +397,10 @@ static bool scan_start_tag_name(Scanner *scanner, TSLexer *lexer) {
     String tag_name = scan_tag_name(lexer);
     if (tag_name.size == 0) {
         array_delete(&tag_name);
-        return false;
+        Tag tag = {.type = FRAGMENT, .custom_tag_name = {0}};
+        array_push(&scanner->tags, tag);
+        lexer->result_symbol = FRAGMENT_TAG_NAME;
+        return true;
     }
 
     Tag tag = tag_for_name(tag_name);
@@ -417,10 +421,16 @@ static bool scan_start_tag_name(Scanner *scanner, TSLexer *lexer) {
 
 static bool scan_end_tag_name(Scanner *scanner, TSLexer *lexer) {
     String tag_name = scan_tag_name(lexer);
-
     if (tag_name.size == 0) {
         array_delete(&tag_name);
-        return false;
+        if (array_back(&scanner->tags)->type == FRAGMENT) {
+            pop_tag(scanner);
+            lexer->result_symbol = FRAGMENT_TAG_NAME;
+            return true;
+        } else {
+            lexer->result_symbol = ERRONEOUS_END_TAG_NAME;
+            return true;
+        }
     }
 
     Tag tag = tag_for_name(tag_name);
@@ -451,6 +461,8 @@ static bool scan_self_closing_tag_delimiter(Scanner *scanner, TSLexer *lexer) {
 static bool scan_permissible_text(TSLexer *lexer) {
     lexer->mark_end(lexer);
 
+    bool there_is_text = false;
+
     while (lexer->lookahead != '\0') {
         lexer->mark_end(lexer);
         if(lexer->lookahead == '{' || lexer->lookahead == '}') {
@@ -477,18 +489,24 @@ static bool scan_permissible_text(TSLexer *lexer) {
                 break;
             }
             if (lexer->lookahead == '>') {
-                // TODO add grammar.js support for this
-                // Potential "element group" tag
+                // Fragment tag
                 // (e.g. `<> <p> hi </p> </>`)
                 break;
             }
         } else {
             advance(lexer);
+            there_is_text = true;
         }
     }
 
-    lexer->result_symbol = PERMISSIBLE_TEXT;
-    return true;
+    // If there isn't any text,
+    // then this can't be permissible text.
+    if (there_is_text) {
+        lexer->result_symbol = PERMISSIBLE_TEXT;
+        return true;
+    } else {
+        return false;
+    }
 }
 
 static bool scan(Scanner *scanner, TSLexer *lexer, const bool *valid_symbols) {
@@ -535,10 +553,17 @@ static bool scan(Scanner *scanner, TSLexer *lexer, const bool *valid_symbols) {
                 return scan_implicit_end_tag(scanner, lexer);
             }
 
-            if (valid_symbols[PERMISSIBLE_TEXT] && IS_ASCII_ALPHA(lexer->lookahead)) {
-                // This looks like an element,
-                // so it can't be permissible text.
-                definitely_not_permissible_text = true;
+            if (valid_symbols[PERMISSIBLE_TEXT]) {
+                bool invalid = 
+                    IS_ASCII_ALPHA(lexer->lookahead)
+                    || lexer->lookahead == '/'
+                    || lexer->lookahead == '?'
+                    || lexer->lookahead == '>';
+                if (invalid) {
+                    // This looks like an element,
+                    // so it can't be permissible text.
+                    definitely_not_permissible_text = true;
+                }
             }
 
             break;

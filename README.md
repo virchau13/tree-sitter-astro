@@ -31,20 +31,32 @@ This is just injected TypeScript.
 ### Astro's special HTML format
 Astro's special HTML format is *not* JSX/TSX, but rather an extension of HTML. This grammar is an extension of the grammar from [tree-sitter-html](https://github.com/tree-sitter/tree-sitter-html).
 
-Astro's HTML is parsed as regular HTML with two exceptions: *HTML interpolations* and *attribute interpolations* (both referred to as "expressions" in the Astro docs). These are JS-ish expressions:
-```astro
-<!-- Attribute interpolation -->
-<div style={styleMap}></div>
-<!-- HTML interpolation -->
-<div>{variable}</div>
-```
+Astro's HTML is parsed as regular HTML with three exceptions.
 
-These are both parsed differently.
+#### Fragment tags
+Astro allows tags with no name.
+```astro
+<>
+    <p> hi </p>
+</>
+```
+These are used as tags that aren't actually present in the final HTML.  
+These are implemented by special-casing unnamed elements in the external lexer.
 
 #### Attribute interpolations
-Attribute interpolations are handled as injected TypeScript.
+These are special attributes that evaluate to the result of a TypeScript expression. Astro's docs call these "expressions".
+```astro
+<div style={styleMap}></div>
+```
+These are just handled as injected TypeScript.
 
 #### HTML interpolations
+These are TypeScript expressions that get evaluated to dynamically make a HTML node. Astro's docs also calls these "expressions", but for the purposes of the parser they are very different.
+```
+<div>
+    {variable}
+</div>
+```
 In the Astro compiler, HTML interpolations are actually handled as [special HTML nodes](https://github.com/withastro/compiler/blob/e8b6cdfc89f940a411304787632efd8140535feb/internal/parser.go#L2736). We do the same here.  
 Balanced curly braces inside HTML interpolations will turn into a nested stack of HTML interpolations.  
 Note that since this is not JSX, there are things valid in Astro that aren't in JSX, and there are things that are valid in JSX that aren't in Astro. For instance,

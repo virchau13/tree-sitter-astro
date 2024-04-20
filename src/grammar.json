@@ -203,20 +203,34 @@
           "value": "<"
         },
         {
-          "type": "ALIAS",
-          "content": {
-            "type": "SYMBOL",
-            "name": "_start_tag_name"
-          },
-          "named": true,
-          "value": "tag_name"
-        },
-        {
-          "type": "REPEAT",
-          "content": {
-            "type": "SYMBOL",
-            "name": "attribute"
-          }
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "SEQ",
+              "members": [
+                {
+                  "type": "ALIAS",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "_start_tag_name"
+                  },
+                  "named": true,
+                  "value": "tag_name"
+                },
+                {
+                  "type": "REPEAT",
+                  "content": {
+                    "type": "SYMBOL",
+                    "name": "attribute"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "SYMBOL",
+              "name": "fragment_tag_name"
+            }
+          ]
         },
         {
           "type": "STRING",
@@ -319,13 +333,22 @@
           "value": "</"
         },
         {
-          "type": "ALIAS",
-          "content": {
-            "type": "SYMBOL",
-            "name": "_end_tag_name"
-          },
-          "named": true,
-          "value": "tag_name"
+          "type": "CHOICE",
+          "members": [
+            {
+              "type": "ALIAS",
+              "content": {
+                "type": "SYMBOL",
+                "name": "_end_tag_name"
+              },
+              "named": true,
+              "value": "tag_name"
+            },
+            {
+              "type": "SYMBOL",
+              "name": "fragment_tag_name"
+            }
+          ]
         },
         {
           "type": "STRING",
@@ -676,6 +699,10 @@
     {
       "type": "SYMBOL",
       "name": "permissible_text"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "fragment_tag_name"
     }
   ],
   "inline": [],

@@ -6,8 +6,6 @@
 typedef enum {
     AREA,
     BASE,
-    BASEFONT,
-    BGSOUND,
     BR,
     COL,
     COMMAND,
@@ -135,6 +133,10 @@ typedef enum {
     // HTML interpolations.
     INTERPOLATION,
 
+    // Fragment tags,
+    // e.g. <> </>.
+    FRAGMENT,
+
     CUSTOM,
 
     END_,
@@ -155,8 +157,6 @@ typedef struct {
 static const TagMapEntry TAG_TYPES_BY_TAG_NAME[126] = {
     {"area",       AREA      },
     {"base",       BASE      },
-    {"basefont",   BASEFONT  },
-    {"bgsound",    BGSOUND   },
     {"br",         BR        },
     {"col",        COL       },
     {"command",    COMMAND   },

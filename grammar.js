@@ -22,6 +22,7 @@ module.exports = grammar(HTML, {
         $.frontmatter_js_block,
         $.attribute_js_expr,
         $.permissible_text,
+        $.fragment_tag_name,
     ]),
 
     rules: {
@@ -35,6 +36,7 @@ module.exports = grammar(HTML, {
             original,
         ),
 
+        // For use in HTML interpolations.
         _node_with_permissible_text: $ => choice(
             $.doctype,
             $.element,
@@ -42,6 +44,27 @@ module.exports = grammar(HTML, {
             $.style_element,
             $.html_interpolation,
             $.permissible_text,
+        ),
+
+        // Allow fragment tags.
+        start_tag: ($, _) => seq(
+            '<',
+            choice(
+                seq(
+                    alias($._start_tag_name, $.tag_name),
+                    repeat($.attribute),
+                ),
+                $.fragment_tag_name,
+            ),
+            '>'
+        ),
+        end_tag: ($, _) => seq(
+            '</',
+            choice(
+                alias($._end_tag_name, $.tag_name),
+                $.fragment_tag_name,
+            ),
+            '>'
         ),
 
         frontmatter: $ => seq(
