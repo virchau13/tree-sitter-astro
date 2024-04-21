@@ -474,12 +474,9 @@ static bool scan_self_closing_tag_delimiter(Scanner *scanner, TSLexer *lexer) {
 }
 
 static bool scan_permissible_text(TSLexer *lexer) {
-    lexer->mark_end(lexer);
-
     bool there_is_text = false;
 
     while (lexer->lookahead != '\0') {
-        lexer->mark_end(lexer);
         if(lexer->lookahead == '{' || lexer->lookahead == '}') {
             // Start of interpolation / end of interpolation, break
             break;
@@ -545,6 +542,7 @@ static bool scan_permissible_text(TSLexer *lexer) {
         } 
         advance(lexer);
         there_is_text = true;
+        lexer->mark_end(lexer);
     }
 
     // If there isn't any text,
@@ -617,6 +615,7 @@ static bool scan(Scanner *scanner, TSLexer *lexer, const bool *valid_symbols) {
             break;
 
         case '\0':
+            definitely_not_permissible_text = true;
             if (valid_symbols[IMPLICIT_END_TAG]) {
                 return scan_implicit_end_tag(scanner, lexer);
             }
