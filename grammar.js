@@ -23,7 +23,7 @@ module.exports = grammar(HTML, {
         $.attribute_js_expr,
         $.attribute_backtick_string,
         $.permissible_text,
-        $.fragment_tag_name,
+        $._fragment_tag_delim,
     ]),
 
     rules: {
@@ -64,7 +64,7 @@ module.exports = grammar(HTML, {
                     repeat($.attribute),
                     '>',
                 ),
-                $.fragment_tag_name,
+                alias($._fragment_tag_delim, '>'),
             ),
         ),
         end_tag: ($, _) => seq(
@@ -74,7 +74,7 @@ module.exports = grammar(HTML, {
                     alias($._end_tag_name, $.tag_name),
                     '>',
                 ),
-                $.fragment_tag_name,
+                alias($._fragment_tag_delim, '>'),
             ),
         ),
 

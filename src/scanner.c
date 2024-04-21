@@ -19,7 +19,7 @@ enum TokenType {
     ATTRIBUTE_JS_EXPR,
     ATTRIBUTE_BACKTICK_STRING,
     PERMISSIBLE_TEXT,
-    FRAGMENT_TAG_NAME,
+    FRAGMENT_TAG_DELIM,
 };
 
 typedef struct {
@@ -405,7 +405,7 @@ static bool scan_start_tag_name(Scanner *scanner, TSLexer *lexer) {
             advance(lexer);
             Tag tag = {.type = FRAGMENT, .custom_tag_name = {0}};
             array_push(&scanner->tags, tag);
-            lexer->result_symbol = FRAGMENT_TAG_NAME;
+            lexer->result_symbol = FRAGMENT_TAG_DELIM;
             return true;
         } else {
             return false;
@@ -436,7 +436,7 @@ static bool scan_end_tag_name(Scanner *scanner, TSLexer *lexer) {
             advance(lexer);
             if (scanner->tags.size > 0 && array_back(&scanner->tags)->type == FRAGMENT) {
                 pop_tag(scanner);
-                lexer->result_symbol = FRAGMENT_TAG_NAME;
+                lexer->result_symbol = FRAGMENT_TAG_DELIM;
                 return true;
             } else {
                 lexer->result_symbol = ERRONEOUS_END_TAG_NAME;

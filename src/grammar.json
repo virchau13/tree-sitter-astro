@@ -222,8 +222,13 @@
               ]
             },
             {
-              "type": "SYMBOL",
-              "name": "fragment_tag_name"
+              "type": "ALIAS",
+              "content": {
+                "type": "SYMBOL",
+                "name": "_fragment_tag_delim"
+              },
+              "named": false,
+              "value": ">"
             }
           ]
         }
@@ -345,8 +350,13 @@
               ]
             },
             {
-              "type": "SYMBOL",
-              "name": "fragment_tag_name"
+              "type": "ALIAS",
+              "content": {
+                "type": "SYMBOL",
+                "name": "_fragment_tag_delim"
+              },
+              "named": false,
+              "value": ">"
             }
           ]
         }
@@ -711,7 +721,7 @@
     },
     {
       "type": "SYMBOL",
-      "name": "fragment_tag_name"
+      "name": "_fragment_tag_delim"
     }
   ],
   "inline": [],

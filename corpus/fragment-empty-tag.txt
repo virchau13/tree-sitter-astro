@@ -15,8 +15,7 @@ Fragment (empty) tags
 
 (document
   (element
-    (start_tag
-      (fragment_tag_name))
+    (start_tag)
     (element
       (start_tag
         (tag_name))
@@ -26,16 +25,13 @@ Fragment (empty) tags
     (html_interpolation
       (permissible_text)
       (element
-        (start_tag
-          (fragment_tag_name))
+        (start_tag)
         (element
           (start_tag
             (tag_name))
           (text)
           (end_tag
             (tag_name)))
-        (end_tag
-          (fragment_tag_name)))
+        (end_tag))
       (permissible_text))
-    (end_tag
-      (fragment_tag_name))))
+    (end_tag)))
