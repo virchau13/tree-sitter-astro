@@ -4,7 +4,7 @@
   "description": "Astro grammar for tree-sitter",
   "main": "bindings/node",
   "scripts": {
-    "build": "tree-sitter generate",
+    "build": "tree-sitter generate && node-gyp build",
     "parse": "tree-sitter parse",
     "test": "tree-sitter test && script/parse-examples",
     "test-windows": "tree-sitter test"
