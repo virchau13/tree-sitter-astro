@@ -423,8 +423,17 @@
               "value": "="
             },
             {
-              "type": "SYMBOL",
-              "name": "attribute_interpolation"
+              "type": "CHOICE",
+              "members": [
+                {
+                  "type": "SYMBOL",
+                  "name": "attribute_interpolation"
+                },
+                {
+                  "type": "SYMBOL",
+                  "name": "attribute_backtick_string"
+                }
+              ]
             }
           ]
         }
@@ -691,6 +700,10 @@
     {
       "type": "SYMBOL",
       "name": "attribute_js_expr"
+    },
+    {
+      "type": "SYMBOL",
+      "name": "attribute_backtick_string"
     },
     {
       "type": "SYMBOL",

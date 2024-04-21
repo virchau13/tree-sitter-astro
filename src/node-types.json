@@ -8,6 +8,10 @@
       "required": true,
       "types": [
         {
+          "type": "attribute_backtick_string",
+          "named": true
+        },
+        {
           "type": "attribute_interpolation",
           "named": true
         },
@@ -362,6 +366,10 @@
   {
     "type": ">",
     "named": false
+  },
+  {
+    "type": "attribute_backtick_string",
+    "named": true
   },
   {
     "type": "attribute_js_expr",

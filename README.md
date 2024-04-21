@@ -31,7 +31,7 @@ This is just injected TypeScript.
 ### Astro's special HTML format
 Astro's special HTML format is *not* JSX/TSX, but rather an extension of HTML. This grammar is an extension of the grammar from [tree-sitter-html](https://github.com/tree-sitter/tree-sitter-html).
 
-Astro's HTML is parsed as regular HTML with three exceptions.
+Astro's HTML is parsed as regular HTML with four exceptions.
 
 #### Fragment tags
 Astro allows tags with no name.
@@ -49,6 +49,13 @@ These are special attributes that evaluate to the result of a TypeScript express
 <div style={styleMap}></div>
 ```
 These are just handled as injected TypeScript.
+
+#### Attribute backtick strings
+These are also special attributes that evaluate to the result of a TypeScript expression, but instead of being wrapped in braces, they're JS backtick strings. They appear to be undocumented.
+```astro
+<a href=`/pages/${nextPage}`>Link</a>
+```
+These are also handled as injected TypeScript.
 
 #### HTML interpolations
 These are TypeScript expressions that get evaluated to dynamically make a HTML node. Astro's docs also calls these "expressions", but for the purposes of the parser they are very different.

@@ -21,6 +21,7 @@ module.exports = grammar(HTML, {
         $._html_interpolation_end,
         $.frontmatter_js_block,
         $.attribute_js_expr,
+        $.attribute_backtick_string,
         $.permissible_text,
         $.fragment_tag_name,
     ]),
@@ -88,7 +89,10 @@ module.exports = grammar(HTML, {
             seq(
                 $.attribute_name,
                 '=',
-                $.attribute_interpolation,
+                choice(
+                    $.attribute_interpolation,
+                    $.attribute_backtick_string,
+                ),
             ),
         ),
 

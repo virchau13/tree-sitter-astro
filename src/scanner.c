@@ -17,6 +17,7 @@ enum TokenType {
     HTML_INTERPOLATION_END,
     FRONTMATTER_JS_BLOCK,
     ATTRIBUTE_JS_EXPR,
+    ATTRIBUTE_BACKTICK_STRING,
     PERMISSIBLE_TEXT,
     FRAGMENT_TAG_NAME,
 };
@@ -642,10 +643,21 @@ static bool scan(Scanner *scanner, TSLexer *lexer, const bool *valid_symbols) {
                 return scan_implicit_end_tag(scanner, lexer);
             }
 
-            if (valid_symbols[HTML_INTERPOLATION_END] && array_back(&scanner->tags)->type == INTERPOLATION) {
+            if (valid_symbols[HTML_INTERPOLATION_END] &&
+                    scanner->tags.size > 0 &&
+                    array_back(&scanner->tags)->type == INTERPOLATION) {
                 lexer->advance(lexer, false);
                 array_pop(&scanner->tags);
                 lexer->result_symbol = HTML_INTERPOLATION_END;
+                return true;
+            }
+            break;
+
+        case '`':
+            if (valid_symbols[ATTRIBUTE_BACKTICK_STRING]) {
+                scan_js_backtick_string(lexer);
+                lexer->mark_end(lexer);
+                lexer->result_symbol = ATTRIBUTE_BACKTICK_STRING;
                 return true;
             }
             break;
