@@ -165,7 +165,7 @@ static inline void scan_js_expr_with_delimiter(TSLexer *lexer, enum RawTextEndTy
 static inline void scan_js_backtick_string(TSLexer *lexer) {
     // Advance past backtick
     lexer->advance(lexer, false);
-    while (lexer->lookahead) {
+    while (lexer->lookahead != '\0') {
         if (lexer->lookahead == '$') {
             lexer->advance(lexer, false);
             if (lexer->lookahead == '{') {
@@ -194,7 +194,7 @@ static inline void scan_js_string(TSLexer *lexer) {
         // Start and end chars are the same
         char str_end_char = (char)lexer->lookahead;
         lexer->advance(lexer, false);
-        while (lexer->lookahead) {
+        while (lexer->lookahead != '\0') {
             // Note that this doesn't take into account newlines in basic
             // strings, for the same reason why tree-sitter-javascript
             // doesn't.
@@ -485,7 +485,7 @@ static bool scan_permissible_text(TSLexer *lexer) {
             // skip string
             scan_js_string(lexer);
             there_is_text = true;
-            continue;
+            goto text_found;
         }
         if(lexer->lookahead == '/') {
             // check for a comment
@@ -512,7 +512,7 @@ static bool scan_permissible_text(TSLexer *lexer) {
                     }
                 }
             }
-            continue;
+            goto text_found;
         }
         if (lexer->lookahead == '<') {
             advance(lexer);
@@ -538,9 +538,12 @@ static bool scan_permissible_text(TSLexer *lexer) {
                 // (e.g. `<> <p> hi </p> </>`)
                 break;
             }
-            continue;
+            // If none of the above conditions pass,
+            // there's definitely text here.
+            goto text_found;
         } 
         advance(lexer);
+text_found:
         there_is_text = true;
         lexer->mark_end(lexer);
     }
