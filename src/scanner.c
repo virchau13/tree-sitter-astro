@@ -434,7 +434,7 @@ static bool scan_end_tag_name(Scanner *scanner, TSLexer *lexer) {
         array_delete(&tag_name);
         if (lexer->lookahead == '>') {
             advance(lexer);
-            if (array_back(&scanner->tags)->type == FRAGMENT) {
+            if (scanner->tags.size > 0 && array_back(&scanner->tags)->type == FRAGMENT) {
                 pop_tag(scanner);
                 lexer->result_symbol = FRAGMENT_TAG_NAME;
                 return true;
