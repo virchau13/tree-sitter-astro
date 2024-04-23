@@ -94,6 +94,9 @@ module.exports = grammar(HTML, {
                     $.attribute_backtick_string,
                 ),
             ),
+            // Astro directly allows attributes without equal signs,
+            // e.g. <div {...attrs} />
+            $.attribute_interpolation,
         ),
 
         attribute_interpolation: $ => seq(

@@ -44,9 +44,10 @@ These are used as tags that aren't actually present in the final HTML.
 These are implemented by special-casing unnamed elements in the external lexer.
 
 #### Attribute interpolations
-These are special attributes that evaluate to the result of a TypeScript expression. Astro's docs call these "expressions".
+These are special attributes that evaluate to the result of a TypeScript expression. Astro's docs call these "expressions". They come in two forms:
 ```astro
 <div style={styleMap}></div>
+<div {...attrMap}></div>
 ```
 These are just handled as injected TypeScript.
 
