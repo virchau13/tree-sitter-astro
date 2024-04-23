@@ -107,6 +107,31 @@ module.exports = grammar(HTML, {
             repeat($._node_with_permissible_text),
             alias($._html_interpolation_end, '}'),
         ),
+        
+        // Astro supports self-closing script/style tags.
+        self_closing_script_tag: $ => seq(
+            '<',
+            alias($._script_start_tag_name, $.tag_name),
+            repeat($.attribute),
+            '/>',
+        ),
+
+        self_closing_style_tag: $ => seq(
+            '<',
+            alias($._style_start_tag_name, $.tag_name),
+            repeat($.attribute),
+            '/>'
+        ),
+        
+        script_element: ($, original) => choice(
+            original,
+            alias($.self_closing_script_tag, $.self_closing_tag),
+        ),
+
+        style_element: ($, original) => choice(
+            original,
+            alias($.self_closing_style_tag, $.self_closing_tag),
+        ),
 
         /* Astro doesn't provide any way to escape curly braces apart from
          * the standard HTML method of e.g. `&x30;` */

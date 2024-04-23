@@ -256,6 +256,10 @@
           "named": true
         },
         {
+          "type": "self_closing_tag",
+          "named": true
+        },
+        {
           "type": "start_tag",
           "named": true
         }
@@ -314,6 +318,10 @@
         },
         {
           "type": "raw_text",
+          "named": true
+        },
+        {
+          "type": "self_closing_tag",
           "named": true
         },
         {
