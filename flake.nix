@@ -13,6 +13,7 @@
         devShell = pkgs.mkShell {
             buildInputs = with pkgs; [
                 tree-sitter
+                cargo
             ];
         };
 
