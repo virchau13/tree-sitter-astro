@@ -1,0 +1,19 @@
+{
+  "grammars": [
+    {
+      "name": "astro",
+      "scope": "source.astro",
+      "file-types": [
+        "astro"
+      ]
+    }
+  ],
+  "metadata": {
+    "version": "0.0.2",
+    "license": "MIT",
+    "description": "Astro grammar for tree-sitter",
+    "links": {
+      "repository": "https://github.com/virchau13/tree-sitter-astro"
+    }
+  }
+}
