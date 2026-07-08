@@ -1,0 +1,45 @@
+===
+Curly braces in permissible_text are ignored, unless they are part of a html_interpolation in an element
+===
+
+<div>
+  {["abc", "def"].map((value) => {
+    // Braces in comments should be ignored: {{{{}{}{}}}{{{}}}{{{{}{{}{{{}{{{{{{
+    return (
+      <p>{(() => {
+        return value;
+      })()}</p>
+    );
+  })}
+</div>
+<div>
+  {Object.keys({ abc: 123, def: 456 }).map((key) => ({
+    thing: `${key}-${key}`
+    /**
+     * Also ignore them in multiline comments {{}}}}}
+     * }
+     * {{}
+     * {
+     */
+  }))}
+</div>
+
+-------
+
+(document
+  (element
+    (start_tag (tag_name))
+    (html_interpolation
+      (permissible_text)
+      (element
+        (start_tag (tag_name))
+        (html_interpolation
+          (permissible_text))
+        (end_tag (tag_name)))
+      (permissible_text))
+    (end_tag (tag_name)))
+    (element
+      (start_tag (tag_name))
+      (html_interpolation
+        (permissible_text))
+      (end_tag (tag_name))))

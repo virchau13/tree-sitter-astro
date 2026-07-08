@@ -206,10 +206,6 @@
           "named": true
         },
         {
-          "type": "html_interpolation",
-          "named": true
-        },
-        {
           "type": "permissible_text",
           "named": true
         },

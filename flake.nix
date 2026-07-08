@@ -14,6 +14,9 @@
             buildInputs = with pkgs; [
                 tree-sitter
                 cargo
+                nodejs
+                nodePackages.node-gyp
+                python3
             ];
         };
 

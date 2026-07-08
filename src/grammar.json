@@ -583,10 +583,6 @@
         },
         {
           "type": "SYMBOL",
-          "name": "html_interpolation"
-        },
-        {
-          "type": "SYMBOL",
           "name": "permissible_text"
         }
       ]

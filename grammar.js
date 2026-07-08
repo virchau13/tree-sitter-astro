@@ -51,7 +51,6 @@ module.exports = grammar(HTML, {
             $.element,
             $.script_element,
             $.style_element,
-            $.html_interpolation,
             $.permissible_text,
         ),
 

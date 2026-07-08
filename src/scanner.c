@@ -24,9 +24,11 @@ enum TokenType {
 
 typedef struct {
     Array(Tag) tags;
+    Array(unsigned) interpolation_curly_depths;
 } Scanner;
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 #define IS_ASCII_ALPHA(e) (('a' <= (e) && (e) <= 'z') || ('A' <= (e) && (e) <= 'Z'))
 
@@ -35,12 +37,16 @@ static inline void advance(TSLexer *lexer) { lexer->advance(lexer, false); }
 static inline void skip(TSLexer *lexer) { lexer->advance(lexer, true); }
 
 static unsigned serialize(Scanner *scanner, char *buffer) {
-    uint16_t tag_count = scanner->tags.size > UINT16_MAX ? UINT16_MAX : scanner->tags.size;
+    uint16_t tag_count = MIN(scanner->tags.size, UINT16_MAX);
+    uint16_t depth_count = MIN(scanner->interpolation_curly_depths.size, UINT16_MAX);
     uint16_t serialized_tag_count = 0;
+    uint16_t serialized_depth_count = 0;
 
-    unsigned size = sizeof(tag_count);
+    unsigned size = sizeof(serialized_tag_count) + sizeof(serialized_depth_count);
     memcpy(&buffer[size], &tag_count, sizeof(tag_count));
     size += sizeof(tag_count);
+    memcpy(&buffer[size], &depth_count, sizeof(depth_count));
+    size += sizeof(depth_count);
 
     for (; serialized_tag_count < tag_count; serialized_tag_count++) {
         Tag tag = scanner->tags.contents[serialized_tag_count];
@@ -64,7 +70,17 @@ static unsigned serialize(Scanner *scanner, char *buffer) {
         }
     }
 
+    for (; serialized_depth_count < depth_count; serialized_depth_count++) {
+        unsigned depth = scanner->interpolation_curly_depths.contents[serialized_depth_count];
+        if (size + sizeof(depth) >= TREE_SITTER_SERIALIZATION_BUFFER_SIZE) {
+            break;
+        }
+        memcpy(&buffer[size], &depth, sizeof(depth));
+        size += sizeof(depth);
+    }
+
     memcpy(&buffer[0], &serialized_tag_count, sizeof(serialized_tag_count));
+    memcpy(&buffer[sizeof(serialized_tag_count)], &serialized_depth_count, sizeof(serialized_depth_count));
     return size;
 }
 
@@ -73,19 +89,29 @@ static void deserialize(Scanner *scanner, const char *buffer, unsigned length) {
         tag_free(&scanner->tags.contents[i]);
     }
     array_clear(&scanner->tags);
+    array_clear(&scanner->interpolation_curly_depths);
 
     if (length > 0) {
         unsigned size = 0;
         uint16_t tag_count = 0;
+        uint16_t depth_count = 0;
         uint16_t serialized_tag_count = 0;
+        uint16_t serialized_depth_count = 0;
 
         memcpy(&serialized_tag_count, &buffer[size], sizeof(serialized_tag_count));
         size += sizeof(serialized_tag_count);
 
+        memcpy(&serialized_depth_count, &buffer[size], sizeof(serialized_depth_count));
+        size += sizeof(serialized_depth_count);
+
         memcpy(&tag_count, &buffer[size], sizeof(tag_count));
         size += sizeof(tag_count);
 
+        memcpy(&depth_count, &buffer[size], sizeof(depth_count));
+        size += sizeof(depth_count);
+
         array_reserve(&scanner->tags, tag_count);
+        array_reserve(&scanner->interpolation_curly_depths, depth_count);
         if (tag_count > 0) {
             unsigned iter = 0;
             for (iter = 0; iter < serialized_tag_count; iter++) {
@@ -104,6 +130,19 @@ static void deserialize(Scanner *scanner, const char *buffer, unsigned length) {
             // buffer had no more room but we held more tags.
             for (; iter < tag_count; iter++) {
                 array_push(&scanner->tags, tag_new());
+            }
+        }
+
+        if (depth_count > 0) {
+            unsigned iter = 0;
+            for (iter = 0; iter < serialized_depth_count; iter++) {
+                array_push(&scanner->interpolation_curly_depths, buffer[size]);
+                size += sizeof(scanner->interpolation_curly_depths.contents[0]);
+            }
+            // add zero depths if we didn't read enough, this is because the
+            // buffer had no more room but we held more tags.
+            for (; iter < depth_count; iter++) {
+                array_push(&scanner->interpolation_curly_depths, 0);
             }
         }
     }
@@ -473,13 +512,31 @@ static bool scan_self_closing_tag_delimiter(Scanner *scanner, TSLexer *lexer) {
     return false;
 }
 
-static bool scan_permissible_text(TSLexer *lexer) {
+static bool scan_permissible_text(Scanner *scanner, TSLexer *lexer) {
     bool there_is_text = false;
 
     while (lexer->lookahead != '\0') {
-        if(lexer->lookahead == '{' || lexer->lookahead == '}') {
-            // Start of interpolation / end of interpolation, break
-            break;
+        if(lexer->lookahead == '{') {
+            // We've run into an opening curly brace - increment the depth for the html_interpolation currently being
+            // processed, and continue onwards
+            unsigned depth = array_pop(&scanner->interpolation_curly_depths);
+            array_push(&scanner->interpolation_curly_depths, ++depth);
+            advance(lexer);
+            goto text_found;
+        }
+        if(lexer->lookahead == '}') {
+            // Check if curly braces are currently unbalanced in this html_interpolation
+            unsigned depth = array_pop(&scanner->interpolation_curly_depths);
+            if (depth > 0) {
+                // If we are, decrement the depth and carry on reading
+                array_push(&scanner->interpolation_curly_depths, --depth);
+                advance(lexer);
+                goto text_found;
+            } else {
+                // Otherwise, this is the closing curly brace marking the end of the html_interpolation, and we can stop
+                // consuming characters for this permissible_text.
+                break;
+            }
         }
         if(lexer->lookahead == '\'' || lexer->lookahead == '"' || lexer->lookahead == '`') {
             // skip string
@@ -578,7 +635,7 @@ static bool scan(Scanner *scanner, TSLexer *lexer, const bool *valid_symbols) {
     if (valid_symbols[PERMISSIBLE_TEXT]) {
         if(iswspace(lexer->lookahead)) {
             // Can't be anything else.
-            return scan_permissible_text(lexer);
+            return scan_permissible_text(scanner, lexer);
         }
     } else {
         while (iswspace(lexer->lookahead)) {
@@ -635,6 +692,7 @@ static bool scan(Scanner *scanner, TSLexer *lexer, const bool *valid_symbols) {
                 lexer->advance(lexer, false);
                 Tag tag = (Tag){INTERPOLATION, {0}};
                 array_push(&scanner->tags, tag);
+                array_push(&scanner->interpolation_curly_depths, 0);
                 lexer->result_symbol = HTML_INTERPOLATION_START;
                 return true;
             }
@@ -673,7 +731,7 @@ static bool scan(Scanner *scanner, TSLexer *lexer, const bool *valid_symbols) {
 
     if (!definitely_not_permissible_text && valid_symbols[PERMISSIBLE_TEXT]) {
         // There are no other choices, it's this or nothing.
-        return scan_permissible_text(lexer);
+        return scan_permissible_text(scanner, lexer);
     }
 
     return false;
@@ -705,5 +763,6 @@ void tree_sitter_astro_external_scanner_destroy(void *payload) {
         tag_free(&scanner->tags.contents[i]);
     }
     array_delete(&scanner->tags);
+    array_delete(&scanner->interpolation_curly_depths);
     ts_free(scanner);
 }
